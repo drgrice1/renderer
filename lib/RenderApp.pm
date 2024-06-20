@@ -1,29 +1,29 @@
 package RenderApp;
 use Mojo::Base 'Mojolicious';
 
+use Env qw(RENDER_ROOT PG_ROOT OPL_DIRECTORY MOJO_MODE MOJO_CONFIG MOJO_LOG_LEVEL baseURL formURL SITE_HOST);
+
 BEGIN {
 	use Mojo::File;
 	$main::libname = Mojo::File::curfile->dirname;
 
 	# RENDER_ROOT is required for initializing conf files.
-	$ENV{RENDER_ROOT} = $main::libname->dirname
-		unless (defined($ENV{RENDER_ROOT}));
+	$RENDER_ROOT = $main::libname->dirname;
 
 	# PG_ROOT is required for PG/lib/PGEnvironment.pm
-	$ENV{PG_ROOT} = $main::libname . '/PG';
+	$PG_ROOT = $main::libname . '/PG';
 
 	# Used for reconstructing library paths from sym-links.
-	$ENV{OPL_DIRECTORY} = "$ENV{RENDER_ROOT}/webwork-open-problem-library";
+	$OPL_DIRECTORY = "$RENDER_ROOT/webwork-open-problem-library";
 
-	$ENV{MOJO_CONFIG} =
-		(-r "$ENV{RENDER_ROOT}/render_app.conf")
-		? "$ENV{RENDER_ROOT}/render_app.conf"
-		: "$ENV{RENDER_ROOT}/render_app.conf.dist";
-	$ENV{MOJO_LOG_LEVEL} = 'debug';
+	$MOJO_CONFIG =
+		(-r "$RENDER_ROOT/render_app.conf")
+		? "$RENDER_ROOT/render_app.conf"
+		: "$RENDER_ROOT/render_app.conf.dist";
 }
 
 use lib "$main::libname";
-print "using root directory: $ENV{RENDER_ROOT}\n";
+print "using root directory: $RENDER_ROOT\n";
 
 use RenderApp::Model::Problem;
 use RenderApp::Controller::IO;
@@ -63,17 +63,17 @@ sub startup {
 	}
 
 	# Logging
-	if ($ENV{MOJO_MODE} && $ENV{MOJO_MODE} eq 'production') {
-		my $logPath = "$ENV{RENDER_ROOT}/logs/error.log";
+	if ($MOJO_MODE && $MOJO_MODE eq 'production') {
+		my $logPath = "$RENDER_ROOT/logs/error.log";
 		print "[LOGS] Running in production mode, logging to $logPath\n";
 		$self->log(Mojo::Log->new(
 			path  => $logPath,
-			level => ($ENV{MOJO_LOG_LEVEL} || 'warn')
+			level => ($MOJO_LOG_LEVEL || 'warn')
 		));
 	}
 
 	if ($self->config('INTERACTION_LOG')) {
-		my $interactionLogPath = "$ENV{RENDER_ROOT}/logs/interactions.log";
+		my $interactionLogPath = "$RENDER_ROOT/logs/interactions.log";
 		print "[LOGS] Saving interactions to $interactionLogPath\n";
 		my $resultsLog = Mojo::Log->new(path => $interactionLogPath, level => 'info');
 		$resultsLog->format(sub {
@@ -99,7 +99,7 @@ sub startup {
 	# Routes
 	# baseURL sets the root at which the renderer is listening,
 	# and is used in Environment for pg_root_url
-	my $r = $self->routes->under($ENV{baseURL});
+	my $r = $self->routes->under($baseURL);
 
 	$r->any('/render-api')->to('render#problem');
 	$r->any('/render-ptx')->to('render#render_ptx');
@@ -114,6 +114,7 @@ sub startup {
 	$r->any('/pg_files/*static')->to('StaticFiles#pg_file');
 	$r->any('/*static')->to('StaticFiles#public_file');
 
+	return;
 }
 
 sub supplementalRoutes {
@@ -144,6 +145,8 @@ sub supplementalRoutes {
 	# ShowMeAnother Support Functions
 	$r->post('/render-api/sma')->to('IO#findNewVersion');
 	$r->post('/render-api/unique')->to('IO#findUniqueSeeds');
+
+	return;
 }
 
 sub timeout {
@@ -155,49 +158,51 @@ sub timeout {
 			$c->rendered(200);
 		}
 	);
+	return;
 }
 
 sub sanitizeHostURLs {
-	$ENV{SITE_HOST} =~ s!/$!!;
+	$SITE_HOST =~ s!/$!!;
 
 	# set an absolute base href for asset urls under iframe embedding
-	if ($ENV{baseURL} =~ m!^https?://!) {
+	if ($baseURL =~ m!^https?://!) {
 
 		# this should only be used by MITM sites when proxying renderer assets
-		my $baseURL = $ENV{baseURL} =~ m!/$! ? $ENV{baseURL} : "$ENV{baseURL}/";
-		$main::basehref = Mojo::URL->new($baseURL);
+		$main::basehref = Mojo::URL->new($baseURL =~ m!/$! ? $baseURL : "$baseURL/");
 
 		# do NOT use the proxy address in our router!
-		$ENV{baseURL} = '';
-	} elsif ($ENV{baseURL} =~ m!\S!) {
+		$baseURL = '';
+	} elsif ($baseURL =~ m!\S!) {
 
-		# ENV{baseURL} is used to build routes, so configure as "/extension"
-		$ENV{baseURL} = "/$ENV{baseURL}";
+		# $baseURL is used to build routes, so configure as "/extension"
+		$baseURL = "/$baseURL";
 		warn "*** [CONFIG] baseURL should not end in a slash\n"
-			if $ENV{baseURL} =~ s!/$!!;
+			if $baseURL =~ s!/$!!;
 		warn "*** [CONFIG] baseURL should begin with a slash\n"
-			unless $ENV{baseURL} =~ s!^//!/!;
+			unless $baseURL =~ s!^//!/!;
 
 		# base href must end in a slash when not hosting at the root
 		$main::basehref =
-			Mojo::URL->new($ENV{SITE_HOST})->path("$ENV{baseURL}/");
+			Mojo::URL->new($SITE_HOST)->path("$baseURL/");
 	} else {
 		# no proxy and service is hosted at the root of SITE_HOST
-		$main::basehref = Mojo::URL->new($ENV{SITE_HOST});
+		$main::basehref = Mojo::URL->new($SITE_HOST);
 	}
 
-	if ($ENV{formURL} =~ m!\S!) {
+	if ($formURL =~ m!\S!) {
 
 		# this should only be used by MITM
-		$main::formURL = Mojo::URL->new($ENV{formURL});
+		$main::formURL = Mojo::URL->new($formURL);
 		die '*** [CONFIG] if provided, formURL must be absolute'
 			unless $main::formURL->is_abs;
 	} else {
 		# if using MITM proxy base href + renderer api not at SITE_HOST root
 		# provide form url as absolute SITE_HOST/extension/render-api
 		$main::formURL =
-			Mojo::URL->new($ENV{SITE_HOST})->path("$ENV{baseURL}/render-api");
+			Mojo::URL->new($SITE_HOST)->path("$baseURL/render-api");
 	}
+
+	return;
 }
 
 1;

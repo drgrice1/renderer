@@ -1,53 +1,67 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 LABEL org.opencontainers.image.source=https://github.com/openwebwork/renderer
 
+ARG RENDERER_TIMEZONE=America/New_York
+
 WORKDIR /usr/app
-ARG DEBIAN_FRONTEND=noninteractive
-ENV TZ=America/New_York
+
+ENV DEBIAN_FRONTEND noninteractive
+ENV DEBCONF_NONINTERACTIVE_SEEN true
+ENV DEBCONF_NOWARNINGS yes
+ENV TZ=$RENDERER_TIMEZONE
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends --no-install-suggests \
-    apt-utils \
-    git \
-    gcc \
-    make \
-    curl \
-    dvipng \
-    openssl \
-    libc-dev \
-    cpanminus \
-    libssl-dev \
-    libgd-perl \
-    zlib1g-dev \
-    imagemagick \
-    libdbi-perl \
-    libjson-perl \
-    libcgi-pm-perl \
-    libjson-xs-perl \
-    ca-certificates \
-    libstorable-perl \
-    libdatetime-perl \
-    libuuid-tiny-perl \
-    libtie-ixhash-perl \
-    libhttp-async-perl \
-    libnet-ssleay-perl \
-    libarchive-zip-perl \
-    libcrypt-ssleay-perl \
-    libclass-accessor-perl \
-    libstring-shellquote-perl \
-    libextutils-cbuilder-perl \
-    libproc-processtable-perl \
-    libmath-random-secure-perl \
-    libdata-structure-util-perl \
-    liblocale-maketext-lexicon-perl \
-    libyaml-libyaml-perl \
-    && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
-    && apt-get install -y --no-install-recommends --no-install-suggests nodejs \
-    && apt-get clean \
-    && rm -fr /var/lib/apt/lists/* /tmp/*
+	&& apt-get install -y --no-install-recommends --no-install-suggests \
+	apt-utils \
+	ca-certificates \
+	cpanminus \
+	curl \
+	dvipng \
+	dvisvgm \
+	gcc \
+	git \
+	imagemagick \
+	libarchive-zip-perl \
+	libc6-dev \
+	libclass-accessor-perl \
+	libclass-tiny-perl \
+	libcrypt-jwt-perl \
+	libdata-structure-util-perl \
+	libdatetime-perl \
+	libdbi-perl \
+	libencode-perl \
+	libfuture-asyncawait-perl \
+	libgd-perl \
+	libhtml-parser-perl \
+	libhttp-async-perl \
+	libjson-perl \
+	libjson-xs-perl \
+	liblocale-maketext-lexicon-perl \
+	libmath-random-secure-perl \
+	libproc-processtable-perl \
+	libssl-dev \
+	libstorable-perl \
+	libstring-shellquote-perl \
+	libtie-ixhash-perl \
+	libtimedate-perl \
+	libuuid-tiny-perl \
+	libyaml-libyaml-perl \
+	make \
+	openssl \
+	pdf2svg \
+	texlive \
+	texlive-latex-extra \
+	texlive-latex-recommended \
+	texlive-plain-generic \
+	&& curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+	&& apt-get install -y --no-install-recommends --no-install-suggests nodejs \
+	&& apt-get clean \
+	&& rm -fr /var/lib/apt/lists/* /tmp/*
 
-RUN cpanm install Mojo::Base Statistics::R::IO::Rserve Date::Format Future::AsyncAwait Crypt::JWT IO::Socket::SSL CGI::Cookie \
-    && rm -fr ./cpanm /root/.cpanm /tmp/*
+RUN cpanm install -nf \
+	Mojolicious \
+	Statistics::R::IO::Rserve \
+	&& rm -fr ./cpanm /root/.cpanm /tmp/*
 
 COPY . .
 
@@ -55,7 +69,7 @@ RUN cp render_app.conf.dist render_app.conf
 
 RUN cp conf/pg_config.yml lib/PG/conf/pg_config.yml
 
-RUN cd public/ && npm install && cd ..
+RUN cd public && npm install && cd ..
 
 RUN cd lib/PG/htdocs && npm install && cd ../../..
 

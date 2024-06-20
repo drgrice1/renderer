@@ -144,7 +144,7 @@ specialPGEnvironmentVars:
   CAPA_Tools: $Contrib_dir/CAPA/macros/CAPA_Tools/
   CAPA_MCTools: $Contrib_dir/Contrib/CAPA/macros/CAPA_MCTools/
   CAPA_GraphicsDirectory: $Contrib_dir/Contrib/CAPA/CAPA_Graphics/
-  CAPA_Graphics_URL: $pg_root_url/CAPA_Graphics/
+  CAPA_Graphics_URL: $pg_root_url/pg_files/CAPA_Graphics/
 
 # Answer evaluatior defaults
 ansEvalDefaults:

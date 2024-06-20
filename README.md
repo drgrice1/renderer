@@ -14,15 +14,14 @@ mkdir volumes
 mkdir container
 git clone https://github.com/openwebwork/webwork-open-problem-library volumes/webwork-open-problem-library
 git clone --recursive https://github.com/openwebwork/renderer container/
-docker build --tag renderer:1.0 ./container
+docker build --tag renderer ./container
 
 docker run -d \
   --rm \
-  --name standalone-renderer \
   --publish 3000:3000 \
   --mount type=bind,source="$(pwd)"/volumes/webwork-open-problem-library/,target=/usr/app/webwork-open-problem-library \
   --env MOJO_MODE=development \
-  renderer:1.0
+  renderer
 ```
 
 If you have non-OPL content, it can be mounted as a volume at `/usr/app/private` by adding the following line to the
